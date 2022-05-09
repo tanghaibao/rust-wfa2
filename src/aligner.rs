@@ -2,13 +2,13 @@ use crate::wfa2;
 use std::ptr;
 use std::slice;
 
-enum MemoryModel {
+pub enum MemoryModel {
     MemoryHigh,
     MemoryMed,
     MemoryLow,
 }
 
-enum AlignmentScope {
+pub enum AlignmentScope {
     Score,
     Alignment,
 }
@@ -228,7 +228,8 @@ pub trait Align {
     }
 }
 
-struct WFAlignerGapAffine {
+/// Gap-Affine Aligner (a.k.a Smith-Waterman-Gotoh)
+pub struct WFAlignerGapAffine {
     aligner: WFAligner,
 }
 
@@ -256,12 +257,47 @@ impl Align for WFAlignerGapAffine {
     }
 }
 
+pub struct WFAlignerIndel {
+    aligner: WFAligner,
+}
+
+/// Indel Aligner (a.k.a Longest Common Subsequence - LCS)
+impl WFAlignerIndel {
+    pub fn new(alignment_scope: AlignmentScope, memory_model: MemoryModel) -> Self {
+        let mut aligner = WFAligner::new(alignment_scope, memory_model);
+        aligner.attributes.inner.distance_metric = wfa2::distance_metric_t_indel;
+        unsafe {
+            aligner.inner = wfa2::wavefront_aligner_new(&mut aligner.attributes.inner);
+        }
+        Self { aligner }
+    }
+}
+
+impl Align for WFAlignerIndel {
+    fn aligner_inner(&self) -> *mut wfa2::wavefront_aligner_t {
+        self.aligner.inner
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn test_aligner() -> WFAlignerGapAffine {
+    fn test_aligner() -> impl Align {
+        test_aligner_gap_affine()
+    }
+
+    fn test_aligner_gap_affine() -> WFAlignerGapAffine {
         WFAlignerGapAffine::new(4, 6, 2, AlignmentScope::Alignment, MemoryModel::MemoryLow)
+    }
+
+    #[test]
+    fn test_aligner_indel() {
+        let mut aligner = WFAlignerIndel::new(AlignmentScope::Alignment, MemoryModel::MemoryHigh);
+        let pattern = b"TCTTTACTCGCGCGTTGGAGAAATACAATAGT";
+        let text = b"TCTATACTGCGCGTTTGGAGAAATAAAATAGT";
+        let status = aligner.align_end_to_end(pattern, text);
+        assert_eq!(status, AlignmentStatus::StatusSuccessful);
     }
 
     #[test]
