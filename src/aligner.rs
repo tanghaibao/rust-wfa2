@@ -13,6 +13,15 @@ enum AlignmentScope {
     Alignment,
 }
 
+pub enum Heuristic {
+    None,
+    BandedStatic(i32, i32),
+    BandedAdaptive(i32, i32, i32),
+    WFadaptive(i32, i32, i32),
+    XDrop(i32, i32),
+    ZDrop(i32, i32),
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum AlignmentStatus {
     StatusSuccessful = wfa2::WF_STATUS_SUCCESSFUL as isize,
@@ -97,13 +106,13 @@ impl WFAlignerGapAffine {
 pub trait Align {
     fn align_end_to_end(&mut self, pattern: &[u8], text: &[u8]) -> AlignmentStatus;
 
-    fn align_end_to_end_lambda(&mut self, pattern_len: usize, text_len: usize) -> AlignmentStatus;
-
     fn alignment_score(&self) -> i32;
 
     fn alignment_cigar(&self) -> String;
 
     fn alignment_matching(&self, pattern: &[u8], text: &[u8]) -> (String, String, String);
+
+    fn set_heuristic(&mut self, heuristic: Heuristic);
 }
 
 impl Align for WFAlignerGapAffine {
@@ -118,22 +127,6 @@ impl Align for WFAlignerGapAffine {
                 pattern.len() as i32,
                 text.as_ptr() as *const i8,
                 text.len() as i32,
-            )
-        };
-        AlignmentStatus::from_i32(status)
-    }
-
-    fn align_end_to_end_lambda(&mut self, pattern_len: usize, text_len: usize) -> AlignmentStatus {
-        let status = unsafe {
-            // Configure
-            wfa2::wavefront_aligner_set_alignment_end_to_end(self.aligner.inner);
-            // Align (using custom matching function)
-            wfa2::wavefront_align(
-                self.aligner.inner,
-                ptr::null_mut(),
-                pattern_len as i32,
-                ptr::null_mut(),
-                text_len as i32,
             )
         };
         AlignmentStatus::from_i32(status)
@@ -185,6 +178,53 @@ impl Align for WFAlignerGapAffine {
         }
         (pattern_match, middle_match, text_match)
     }
+
+    fn set_heuristic(&mut self, heuristic: Heuristic) {
+        unsafe {
+            match heuristic {
+                Heuristic::None => wfa2::wavefront_aligner_set_heuristic_none(self.aligner.inner),
+                Heuristic::BandedStatic(band_min_k, band_max_k) => {
+                    wfa2::wavefront_aligner_set_heuristic_banded_static(
+                        self.aligner.inner,
+                        band_min_k,
+                        band_max_k,
+                    )
+                }
+                Heuristic::BandedAdaptive(band_min_k, band_max_k, steps_between_cutoffs) => {
+                    wfa2::wavefront_aligner_set_heuristic_banded_adaptive(
+                        self.aligner.inner,
+                        band_min_k,
+                        band_max_k,
+                        steps_between_cutoffs,
+                    )
+                }
+                Heuristic::WFadaptive(
+                    min_wavefront_length,
+                    max_distance_threshold,
+                    steps_between_cutoffs,
+                ) => wfa2::wavefront_aligner_set_heuristic_wfadaptive(
+                    self.aligner.inner,
+                    min_wavefront_length,
+                    max_distance_threshold,
+                    steps_between_cutoffs,
+                ),
+                Heuristic::XDrop(xdrop, steps_between_cutoffs) => {
+                    wfa2::wavefront_aligner_set_heuristic_xdrop(
+                        self.aligner.inner,
+                        xdrop,
+                        steps_between_cutoffs,
+                    )
+                }
+                Heuristic::ZDrop(zdrop, steps_between_cutoffs) => {
+                    wfa2::wavefront_aligner_set_heuristic_zdrop(
+                        self.aligner.inner,
+                        zdrop,
+                        steps_between_cutoffs,
+                    )
+                }
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -214,11 +254,13 @@ mod tests {
         );
     }
 
-    // #[test]
-    // fn test_align_end_to_end_lambda() {
-    //     let mut aligner = test_aligner();
-    //     let status = aligner.align_end_to_end_lambda(20, 20);
-    //     assert_eq!(status, AlignmentStatus::StatusSuccessful);
-    //     assert_eq!(aligner.alignment_score(), -24);
-    // }
+    #[test]
+    fn test_set_heuristic() {
+        let mut aligner = test_aligner();
+        aligner.set_heuristic(Heuristic::BandedStatic(1, 2));
+        aligner.set_heuristic(Heuristic::BandedAdaptive(1, 2, 3));
+        aligner.set_heuristic(Heuristic::WFadaptive(1, 2, 3));
+        aligner.set_heuristic(Heuristic::XDrop(1, 2));
+        aligner.set_heuristic(Heuristic::ZDrop(1, 2));
+    }
 }
