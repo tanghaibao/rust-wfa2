@@ -54,25 +54,48 @@ impl WFAligner {
     }
 }
 
+struct WFAlignerGapAffine {
+    aligner: WFAligner,
+}
+
+impl WFAlignerGapAffine {
+    pub fn new(
+        mismatch: i32,
+        gap_opening: i32,
+        gap_extension: i32,
+        alignment_scope: AlignmentScope,
+        memory_model: MemoryModel,
+    ) -> Self {
+        let mut aligner = WFAligner::new(alignment_scope, memory_model);
+        unsafe {
+            (*aligner.attributes).affine_penalties.match_ = 0;
+            (*aligner.attributes).affine_penalties.mismatch = mismatch;
+            (*aligner.attributes).affine_penalties.gap_opening = gap_opening;
+            (*aligner.attributes).affine_penalties.gap_extension = gap_extension;
+            aligner.inner = wfa2::wavefront_aligner_new(aligner.attributes);
+        }
+        Self { aligner }
+    }
+}
+
 pub trait WFAlign {
     fn align_end_to_end(&mut self, pattern: &[u8], text: &[u8]) -> AlignmentStatus;
 }
 
-impl WFAlign for WFAligner {
+impl WFAlign for WFAlignerGapAffine {
     fn align_end_to_end(&mut self, pattern: &[u8], text: &[u8]) -> AlignmentStatus {
         unsafe {
             // Configure
-            wfa2::wavefront_aligner_set_alignment_end_to_end(self.inner);
+            wfa2::wavefront_aligner_set_alignment_end_to_end(self.aligner.inner);
             // Align
-            // let status = wfa2::wavefront_align(
-            //     self.wf_aligner,
-            //     pattern.as_ptr() as *const i8,
-            //     pattern.len() as i32,
-            //     text.as_ptr() as *const i8,
-            //     text.len() as i32,
-            // );
-            // AlignmentStatus::from_i32(status)
-            AlignmentStatus::StatusSuccessful
+            let status = wfa2::wavefront_align(
+                self.aligner.inner,
+                pattern.as_ptr() as *const i8,
+                pattern.len() as i32,
+                text.as_ptr() as *const i8,
+                text.len() as i32,
+            );
+            AlignmentStatus::from_i32(status)
         }
     }
 }
@@ -93,7 +116,8 @@ mod tests {
 
     #[test]
     fn test_constructor() {
-        let mut aligner = WFAligner::new(AlignmentScope::Alignment, MemoryModel::MemoryLow);
+        let mut aligner =
+            WFAlignerGapAffine::new(4, 6, 2, AlignmentScope::Alignment, MemoryModel::MemoryLow);
         let pattern = b"TCTTTACTCGCGCGTTGGAGAAATACAATAGT";
         let text = b"TCTATACTGCGCGTTTGGAGAAATAAAATAGT";
         let status = aligner.align_end_to_end(pattern, text);
