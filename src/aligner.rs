@@ -87,7 +87,7 @@ impl WFAttributes {
     }
 }
 
-struct WFAligner {
+pub struct WFAligner {
     attributes: WFAttributes,
     inner: *mut wfa2::wavefront_aligner_t,
 }
@@ -114,16 +114,14 @@ impl Drop for WFAligner {
     }
 }
 
-pub trait Align {
-    fn aligner_inner(&self) -> *mut wfa2::wavefront_aligner_t;
-
+impl WFAligner {
     fn align_end_to_end(&mut self, pattern: &[u8], text: &[u8]) -> AlignmentStatus {
         let status = unsafe {
             // Configure
-            wfa2::wavefront_aligner_set_alignment_end_to_end(self.aligner_inner());
+            wfa2::wavefront_aligner_set_alignment_end_to_end(self.inner);
             // Align
             wfa2::wavefront_align(
-                self.aligner_inner(),
+                self.inner,
                 pattern.as_ptr() as *const i8,
                 pattern.len() as i32,
                 text.as_ptr() as *const i8,
@@ -134,17 +132,15 @@ pub trait Align {
     }
 
     fn alignment_score(&self) -> i32 {
-        unsafe { (*self.aligner_inner()).cigar.score }
+        unsafe { (*self.inner).cigar.score }
     }
 
     fn alignment_cigar(&self) -> String {
         let cigar_str = unsafe {
-            let begin_offset = (*self.aligner_inner()).cigar.begin_offset;
-            let cigar_operations = (*self.aligner_inner())
-                .cigar
-                .operations
-                .offset(begin_offset as isize) as *const u8;
-            let cigar_length = ((*self.aligner_inner()).cigar.end_offset - begin_offset) as usize;
+            let begin_offset = (*self.inner).cigar.begin_offset;
+            let cigar_operations =
+                (*self.inner).cigar.operations.offset(begin_offset as isize) as *const u8;
+            let cigar_length = ((*self.inner).cigar.end_offset - begin_offset) as usize;
             slice::from_raw_parts(cigar_operations, cigar_length)
         };
         String::from_utf8_lossy(cigar_str).to_string()
@@ -183,17 +179,15 @@ pub trait Align {
     fn set_heuristic(&mut self, heuristic: Heuristic) {
         unsafe {
             match heuristic {
-                Heuristic::None => wfa2::wavefront_aligner_set_heuristic_none(self.aligner_inner()),
+                Heuristic::None => wfa2::wavefront_aligner_set_heuristic_none(self.inner),
                 Heuristic::BandedStatic(band_min_k, band_max_k) => {
                     wfa2::wavefront_aligner_set_heuristic_banded_static(
-                        self.aligner_inner(),
-                        band_min_k,
-                        band_max_k,
+                        self.inner, band_min_k, band_max_k,
                     )
                 }
                 Heuristic::BandedAdaptive(band_min_k, band_max_k, steps_between_cutoffs) => {
                     wfa2::wavefront_aligner_set_heuristic_banded_adaptive(
-                        self.aligner_inner(),
+                        self.inner,
                         band_min_k,
                         band_max_k,
                         steps_between_cutoffs,
@@ -204,21 +198,21 @@ pub trait Align {
                     max_distance_threshold,
                     steps_between_cutoffs,
                 ) => wfa2::wavefront_aligner_set_heuristic_wfadaptive(
-                    self.aligner_inner(),
+                    self.inner,
                     min_wavefront_length,
                     max_distance_threshold,
                     steps_between_cutoffs,
                 ),
                 Heuristic::XDrop(xdrop, steps_between_cutoffs) => {
                     wfa2::wavefront_aligner_set_heuristic_xdrop(
-                        self.aligner_inner(),
+                        self.inner,
                         xdrop,
                         steps_between_cutoffs,
                     )
                 }
                 Heuristic::ZDrop(zdrop, steps_between_cutoffs) => {
                     wfa2::wavefront_aligner_set_heuristic_zdrop(
-                        self.aligner_inner(),
+                        self.inner,
                         zdrop,
                         steps_between_cutoffs,
                     )
@@ -229,9 +223,7 @@ pub trait Align {
 }
 
 /// Gap-Affine Aligner (a.k.a Smith-Waterman-Gotoh)
-pub struct WFAlignerGapAffine {
-    aligner: WFAligner,
-}
+pub struct WFAlignerGapAffine;
 
 impl WFAlignerGapAffine {
     pub fn new(
@@ -240,42 +232,28 @@ impl WFAlignerGapAffine {
         gap_extension: i32,
         alignment_scope: AlignmentScope,
         memory_model: MemoryModel,
-    ) -> Self {
+    ) -> WFAligner {
         let mut aligner = WFAligner::new(alignment_scope, memory_model);
         aligner.attributes =
             WFAttributes::default().affine_penalties(0, mismatch, gap_opening, gap_extension);
         unsafe {
             aligner.inner = wfa2::wavefront_aligner_new(&mut aligner.attributes.inner);
         }
-        Self { aligner }
-    }
-}
-
-impl Align for WFAlignerGapAffine {
-    fn aligner_inner(&self) -> *mut wfa2::wavefront_aligner_t {
-        self.aligner.inner
+        aligner
     }
 }
 
 /// Indel Aligner (a.k.a Longest Common Subsequence - LCS)
-pub struct WFAlignerIndel {
-    aligner: WFAligner,
-}
+pub struct WFAlignerIndel;
 
 impl WFAlignerIndel {
-    pub fn new(alignment_scope: AlignmentScope, memory_model: MemoryModel) -> Self {
+    pub fn new(alignment_scope: AlignmentScope, memory_model: MemoryModel) -> WFAligner {
         let mut aligner = WFAligner::new(alignment_scope, memory_model);
         aligner.attributes.inner.distance_metric = wfa2::distance_metric_t_indel;
         unsafe {
             aligner.inner = wfa2::wavefront_aligner_new(&mut aligner.attributes.inner);
         }
-        Self { aligner }
-    }
-}
-
-impl Align for WFAlignerIndel {
-    fn aligner_inner(&self) -> *mut wfa2::wavefront_aligner_t {
-        self.aligner.inner
+        aligner
     }
 }
 
@@ -283,11 +261,11 @@ impl Align for WFAlignerIndel {
 mod tests {
     use super::*;
 
-    fn test_aligner() -> impl Align {
+    fn test_aligner() -> WFAligner {
         test_aligner_gap_affine()
     }
 
-    fn test_aligner_gap_affine() -> WFAlignerGapAffine {
+    fn test_aligner_gap_affine() -> WFAligner {
         WFAlignerGapAffine::new(4, 6, 2, AlignmentScope::Alignment, MemoryModel::MemoryLow)
     }
 
