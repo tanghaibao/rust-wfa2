@@ -1,4 +1,5 @@
 use crate::wfa2;
+use std::ptr;
 use std::slice;
 
 enum MemoryModel {
@@ -54,7 +55,7 @@ impl WFAligner {
         };
         Self {
             attributes,
-            inner: std::ptr::null_mut(),
+            inner: ptr::null_mut(),
         }
     }
 }
@@ -96,6 +97,8 @@ impl WFAlignerGapAffine {
 pub trait Align {
     fn align_end_to_end(&mut self, pattern: &[u8], text: &[u8]) -> AlignmentStatus;
 
+    fn align_end_to_end_lambda(&mut self, pattern_len: usize, text_len: usize) -> AlignmentStatus;
+
     fn alignment_score(&self) -> i32;
 
     fn alignment_cigar(&self) -> String;
@@ -105,19 +108,35 @@ pub trait Align {
 
 impl Align for WFAlignerGapAffine {
     fn align_end_to_end(&mut self, pattern: &[u8], text: &[u8]) -> AlignmentStatus {
-        unsafe {
+        let status = unsafe {
             // Configure
             wfa2::wavefront_aligner_set_alignment_end_to_end(self.aligner.inner);
             // Align
-            let status = wfa2::wavefront_align(
+            wfa2::wavefront_align(
                 self.aligner.inner,
                 pattern.as_ptr() as *const i8,
                 pattern.len() as i32,
                 text.as_ptr() as *const i8,
                 text.len() as i32,
-            );
-            AlignmentStatus::from_i32(status)
-        }
+            )
+        };
+        AlignmentStatus::from_i32(status)
+    }
+
+    fn align_end_to_end_lambda(&mut self, pattern_len: usize, text_len: usize) -> AlignmentStatus {
+        let status = unsafe {
+            // Configure
+            wfa2::wavefront_aligner_set_alignment_end_to_end(self.aligner.inner);
+            // Align (using custom matching function)
+            wfa2::wavefront_align(
+                self.aligner.inner,
+                ptr::null_mut(),
+                pattern_len as i32,
+                ptr::null_mut(),
+                text_len as i32,
+            )
+        };
+        AlignmentStatus::from_i32(status)
     }
 
     fn alignment_score(&self) -> i32 {
@@ -172,10 +191,13 @@ impl Align for WFAlignerGapAffine {
 mod tests {
     use super::*;
 
+    fn test_aligner() -> WFAlignerGapAffine {
+        WFAlignerGapAffine::new(4, 6, 2, AlignmentScope::Alignment, MemoryModel::MemoryLow)
+    }
+
     #[test]
     fn test_align_end_to_end() {
-        let mut aligner =
-            WFAlignerGapAffine::new(4, 6, 2, AlignmentScope::Alignment, MemoryModel::MemoryLow);
+        let mut aligner = test_aligner();
         let pattern = b"TCTTTACTCGCGCGTTGGAGAAATACAATAGT";
         let text = b"TCTATACTGCGCGTTTGGAGAAATAAAATAGT";
         let status = aligner.align_end_to_end(pattern, text);
@@ -191,4 +213,12 @@ mod tests {
             "TCTTTACTCGCGCGTT-GGAGAAATACAATAGT\n|||||||| ||||||| ||||||||||||||||\nTCTATACT-GCGCGTTTGGAGAAATAAAATAGT"
         );
     }
+
+    // #[test]
+    // fn test_align_end_to_end_lambda() {
+    //     let mut aligner = test_aligner();
+    //     let status = aligner.align_end_to_end_lambda(20, 20);
+    //     assert_eq!(status, AlignmentStatus::StatusSuccessful);
+    //     assert_eq!(aligner.alignment_score(), -24);
+    // }
 }
