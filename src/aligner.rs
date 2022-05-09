@@ -72,6 +72,14 @@ impl WFAttributes {
         self
     }
 
+    fn linear_penalties(mut self, match_: i32, mismatch: i32, indel: i32) -> Self {
+        self.inner.distance_metric = wfa2::distance_metric_t_gap_linear;
+        self.inner.linear_penalties.match_ = match_;
+        self.inner.linear_penalties.mismatch = mismatch;
+        self.inner.linear_penalties.indel = indel;
+        self
+    }
+
     fn affine_penalties(
         mut self,
         match_: i32,
@@ -79,6 +87,7 @@ impl WFAttributes {
         gap_opening: i32,
         gap_extension: i32,
     ) -> Self {
+        self.inner.distance_metric = wfa2::distance_metric_t_gap_affine;
         self.inner.affine_penalties.match_ = match_;
         self.inner.affine_penalties.mismatch = mismatch;
         self.inner.affine_penalties.gap_opening = gap_opening;
@@ -222,6 +231,53 @@ impl WFAligner {
     }
 }
 
+/// Indel Aligner (a.k.a Longest Common Subsequence - LCS)
+pub struct WFAlignerIndel;
+
+impl WFAlignerIndel {
+    pub fn new(alignment_scope: AlignmentScope, memory_model: MemoryModel) -> WFAligner {
+        let mut aligner = WFAligner::new(alignment_scope, memory_model);
+        aligner.attributes.inner.distance_metric = wfa2::distance_metric_t_indel;
+        unsafe {
+            aligner.inner = wfa2::wavefront_aligner_new(&mut aligner.attributes.inner);
+        }
+        aligner
+    }
+}
+
+/// Edit Aligner (a.k.a Levenshtein)
+pub struct WFAlignerEdit;
+
+impl WFAlignerEdit {
+    pub fn new(alignment_scope: AlignmentScope, memory_model: MemoryModel) -> WFAligner {
+        let mut aligner = WFAligner::new(alignment_scope, memory_model);
+        aligner.attributes.inner.distance_metric = wfa2::distance_metric_t_edit;
+        unsafe {
+            aligner.inner = wfa2::wavefront_aligner_new(&mut aligner.attributes.inner);
+        }
+        aligner
+    }
+}
+
+/// Gap-Linear Aligner (a.k.a Needleman-Wunsch)
+pub struct WFAlignerGapLinear;
+
+impl WFAlignerGapLinear {
+    pub fn new(
+        mismatch: i32,
+        indel: i32,
+        alignment_scope: AlignmentScope,
+        memory_model: MemoryModel,
+    ) -> WFAligner {
+        let mut aligner = WFAligner::new(alignment_scope, memory_model);
+        aligner.attributes = WFAttributes::default().linear_penalties(0, mismatch, indel);
+        unsafe {
+            aligner.inner = wfa2::wavefront_aligner_new(&mut aligner.attributes.inner);
+        }
+        aligner
+    }
+}
+
 /// Gap-Affine Aligner (a.k.a Smith-Waterman-Gotoh)
 pub struct WFAlignerGapAffine;
 
@@ -236,20 +292,6 @@ impl WFAlignerGapAffine {
         let mut aligner = WFAligner::new(alignment_scope, memory_model);
         aligner.attributes =
             WFAttributes::default().affine_penalties(0, mismatch, gap_opening, gap_extension);
-        unsafe {
-            aligner.inner = wfa2::wavefront_aligner_new(&mut aligner.attributes.inner);
-        }
-        aligner
-    }
-}
-
-/// Indel Aligner (a.k.a Longest Common Subsequence - LCS)
-pub struct WFAlignerIndel;
-
-impl WFAlignerIndel {
-    pub fn new(alignment_scope: AlignmentScope, memory_model: MemoryModel) -> WFAligner {
-        let mut aligner = WFAligner::new(alignment_scope, memory_model);
-        aligner.attributes.inner.distance_metric = wfa2::distance_metric_t_indel;
         unsafe {
             aligner.inner = wfa2::wavefront_aligner_new(&mut aligner.attributes.inner);
         }
