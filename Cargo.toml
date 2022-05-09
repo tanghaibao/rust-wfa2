@@ -2,7 +2,10 @@
 name = "rust-wfa2"
 version = "0.1.0"
 edition = "2021"
+include = ["src/**/*", "LICENSE.md", "README.md", "CHANGELOG.md"]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[workspace]
+members = ["wfa2-sys"]
 
 [dependencies]
+wfa2-sys = { version = "*", path = "wfa2-sys" }

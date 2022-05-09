@@ -1,3 +1,6 @@
+pub mod aligner;
+pub mod wfa2;
+
 #[cfg(test)]
 mod tests {
     #[test]

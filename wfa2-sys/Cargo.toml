@@ -7,9 +7,3 @@ edition = "2021"
 
 [build-dependencies]
 bindgen = "0.53.1"
-
-[workspace]
-members = ["wfa2-sys"]
-
-[dependencies]
-wfa2-sys = "*"
