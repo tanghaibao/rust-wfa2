@@ -94,6 +94,25 @@ impl WFAttributes {
         self.inner.affine_penalties.gap_extension = gap_extension;
         self
     }
+
+    fn affine2p_penalties(
+        mut self,
+        match_: i32,
+        mismatch: i32,
+        gap_opening1: i32,
+        gap_extension1: i32,
+        gap_opening2: i32,
+        gap_extension2: i32,
+    ) -> Self {
+        self.inner.distance_metric = wfa2::distance_metric_t_gap_affine_2p;
+        self.inner.affine2p_penalties.match_ = match_;
+        self.inner.affine2p_penalties.mismatch = mismatch;
+        self.inner.affine2p_penalties.gap_opening1 = gap_opening1;
+        self.inner.affine2p_penalties.gap_extension1 = gap_extension1;
+        self.inner.affine2p_penalties.gap_opening2 = gap_opening2;
+        self.inner.affine2p_penalties.gap_extension2 = gap_extension2;
+        self
+    }
 }
 
 pub struct WFAligner {
@@ -295,6 +314,32 @@ impl WFAlignerGapAffine {
         unsafe {
             aligner.inner = wfa2::wavefront_aligner_new(&mut aligner.attributes.inner);
         }
+        aligner
+    }
+}
+
+/// Gap-Affine Dual-Cost Aligner (a.k.a. concave 2-pieces)
+pub struct WFAlignerGapAffine2Pieces;
+
+impl WFAlignerGapAffine2Pieces {
+    fn new(
+        mismatch: i32,
+        gap_opening1: i32,
+        gap_extension1: i32,
+        gap_opening2: i32,
+        gap_extension2: i32,
+        alignment_scope: AlignmentScope,
+        memory_model: MemoryModel,
+    ) -> WFAligner {
+        let mut aligner = WFAligner::new(alignment_scope, memory_model);
+        aligner.attributes = WFAttributes::default().affine2p_penalties(
+            0,
+            mismatch,
+            gap_opening1,
+            gap_extension1,
+            gap_opening2,
+            gap_extension2,
+        );
         aligner
     }
 }
