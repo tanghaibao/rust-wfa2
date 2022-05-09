@@ -257,11 +257,11 @@ impl Align for WFAlignerGapAffine {
     }
 }
 
+/// Indel Aligner (a.k.a Longest Common Subsequence - LCS)
 pub struct WFAlignerIndel {
     aligner: WFAligner,
 }
 
-/// Indel Aligner (a.k.a Longest Common Subsequence - LCS)
 impl WFAlignerIndel {
     pub fn new(alignment_scope: AlignmentScope, memory_model: MemoryModel) -> Self {
         let mut aligner = WFAligner::new(alignment_scope, memory_model);
@@ -298,6 +298,7 @@ mod tests {
         let text = b"TCTATACTGCGCGTTTGGAGAAATAAAATAGT";
         let status = aligner.align_end_to_end(pattern, text);
         assert_eq!(status, AlignmentStatus::StatusSuccessful);
+        assert_eq!(aligner.alignment_score(), -6);
     }
 
     #[test]
