@@ -19,13 +19,26 @@ enum AlignmentStatus {
 }
 
 struct WFAligner {
-    attributes: wfa2::wavefront_aligner_attr_t,
+    attributes: *mut wfa2::wavefront_aligner_attr_t,
+    wf_aligner: *mut wfa2::wavefront_aligner_t,
 }
 
 impl WFAligner {
     pub fn new(alignment_scope: AlignmentScope, memory_model: MemoryModel) -> Self {
-        let attributes = wfa2::wavefront_aligner_attr_default;
-        Self { attributes }
+        let attributes = unsafe { &mut wfa2::wavefront_aligner_attr_default };
+        let wf_aligner = std::ptr::null_mut();
+        Self {
+            attributes,
+            wf_aligner,
+        }
+    }
+}
+
+impl Drop for WFAligner {
+    fn drop(&mut self) {
+        unsafe {
+            wfa2::wavefront_aligner_delete(self.wf_aligner);
+        }
     }
 }
 
