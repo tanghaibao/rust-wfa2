@@ -125,16 +125,16 @@ impl Align for WFAlignerGapAffine {
     }
 
     fn alignment_cigar(&self) -> String {
-        unsafe {
+        let cigar_str = unsafe {
             let begin_offset = (*self.aligner.inner).cigar.begin_offset;
             let cigar_operations = (*self.aligner.inner)
                 .cigar
                 .operations
                 .offset(begin_offset as isize) as *const u8;
             let cigar_length = ((*self.aligner.inner).cigar.end_offset - begin_offset) as usize;
-            let cigar_str = unsafe { slice::from_raw_parts(cigar_operations, cigar_length) };
-            String::from_utf8_lossy(cigar_str).to_string()
-        }
+            slice::from_raw_parts(cigar_operations, cigar_length)
+        };
+        String::from_utf8_lossy(cigar_str).to_string()
     }
 
     fn alignment_matching(&self, pattern: &[u8], text: &[u8]) -> (String, String, String) {
@@ -173,7 +173,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_constructor() {
+    fn test_align_end_to_end() {
         let mut aligner =
             WFAlignerGapAffine::new(4, 6, 2, AlignmentScope::Alignment, MemoryModel::MemoryLow);
         let pattern = b"TCTTTACTCGCGCGTTGGAGAAATACAATAGT";
