@@ -3,8 +3,22 @@ extern crate cc;
 
 use fs_utils::copy::copy_directory;
 
+use std::collections::HashSet;
 use std::env;
 use std::path::PathBuf;
+
+#[derive(Debug)]
+struct IgnoreMacros(HashSet<String>);
+
+impl bindgen::callbacks::ParseCallbacks for IgnoreMacros {
+    fn will_parse_macro(&self, name: &str) -> bindgen::callbacks::MacroParsingBehavior {
+        if self.0.contains(name) {
+            bindgen::callbacks::MacroParsingBehavior::Ignore
+        } else {
+            bindgen::callbacks::MacroParsingBehavior::Default
+        }
+    }
+}
 
 // these need to be kept in sync with the WFA2 Makefile
 const FILES: &[&str] = &[
@@ -68,6 +82,19 @@ fn main() {
         cfg.file(&c_file);
         println!("cargo:rerun-if-changed={}", wfa2.join(c_file).display());
     }
+    let ignored_macros = IgnoreMacros(
+        vec![
+            "FP_INFINITE".into(),
+            "FP_NAN".into(),
+            "FP_NORMAL".into(),
+            "FP_SUBNORMAL".into(),
+            "FP_ZERO".into(),
+            "IPPORT_RESERVED".into(),
+        ]
+        .into_iter()
+        .collect(),
+    );
+
     cfg.include(out_wfa2);
     cfg.compile("wfa2");
 
@@ -78,6 +105,8 @@ fn main() {
         // The input header we would like to generate
         // bindings for.
         .header("wrapper.h")
+        .parse_callbacks(Box::new(ignored_macros))
+        .rustfmt_bindings(true)
         .clang_arg("-IWFA2-lib")
         // Tell cargo to invalidate the built crate whenever any of the
         // included header files changed.
