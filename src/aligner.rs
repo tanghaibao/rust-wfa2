@@ -357,22 +357,22 @@ mod tests {
     }
 
     fn aligner_gap_linear() -> WFAligner {
-        WFAlignerGapLinear::new(4, 2, AlignmentScope::Alignment, MemoryModel::MemoryHigh)
+        WFAlignerGapLinear::new(6, 2, AlignmentScope::Alignment, MemoryModel::MemoryHigh)
     }
 
     fn aligner_gap_affine() -> WFAligner {
-        WFAlignerGapAffine::new(4, 6, 2, AlignmentScope::Alignment, MemoryModel::MemoryLow)
+        WFAlignerGapAffine::new(6, 4, 2, AlignmentScope::Alignment, MemoryModel::MemoryLow)
     }
 
     fn aligner_gap_affine_2pieces() -> WFAligner {
         WFAlignerGapAffine2Pieces::new(
-            4,
-            5,
-            1,
             6,
+            4,
             2,
+            12,
+            1,
             AlignmentScope::Alignment,
-            MemoryModel::MemoryLow,
+            MemoryModel::MemoryHigh,
         )
     }
 
