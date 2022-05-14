@@ -348,6 +348,9 @@ impl WFAlignerGapAffine2Pieces {
 mod tests {
     use super::*;
 
+    const pattern: &[u8] = b"TCTTTACTCGCGCGTTGGAGAAATACAATAGT";
+    const text: &[u8] = b"TCTATACTGCGCGTTTGGAGAAATAAAATAGT";
+
     fn aligner_indel() -> WFAligner {
         WFAlignerIndel::new(AlignmentScope::Alignment, MemoryModel::MemoryHigh)
     }
@@ -379,8 +382,6 @@ mod tests {
     #[test]
     fn test_aligner_indel() {
         let mut aligner = aligner_indel();
-        let pattern = b"TCTTTACTCGCGCGTTGGAGAAATACAATAGT";
-        let text = b"TCTATACTGCGCGTTTGGAGAAATAAAATAGT";
         let status = aligner.align_end_to_end(pattern, text);
         assert_eq!(status, AlignmentStatus::StatusSuccessful);
         assert_eq!(aligner.alignment_score(), -6);
@@ -389,8 +390,6 @@ mod tests {
     #[test]
     fn test_aligner_edit() {
         let mut aligner = aligner_edit();
-        let pattern = b"TCTTTACTCGCGCGTTGGAGAAATACAATAGT";
-        let text = b"TCTATACTGCGCGTTTGGAGAAATAAAATAGT";
         let status = aligner.align_end_to_end(pattern, text);
         assert_eq!(status, AlignmentStatus::StatusSuccessful);
         assert_eq!(aligner.alignment_score(), -4);
@@ -399,8 +398,6 @@ mod tests {
     #[test]
     fn test_aligner_gap_linear() {
         let mut aligner = aligner_gap_linear();
-        let pattern = b"TCTTTACTCGCGCGTTGGAGAAATACAATAGT";
-        let text = b"TCTATACTGCGCGTTTGGAGAAATAAAATAGT";
         let status = aligner.align_end_to_end(pattern, text);
         assert_eq!(status, AlignmentStatus::StatusSuccessful);
         assert_eq!(aligner.alignment_score(), -12);
@@ -409,8 +406,6 @@ mod tests {
     #[test]
     fn test_aligner_gap_affine() {
         let mut aligner = aligner_gap_affine();
-        let pattern = b"TCTTTACTCGCGCGTTGGAGAAATACAATAGT";
-        let text = b"TCTATACTGCGCGTTTGGAGAAATAAAATAGT";
         let status = aligner.align_end_to_end(pattern, text);
         assert_eq!(status, AlignmentStatus::StatusSuccessful);
         assert_eq!(aligner.alignment_score(), -24);
@@ -428,8 +423,6 @@ mod tests {
     // #[test]
     // fn test_aligner_gap_affine_2pieces() {
     //     let mut aligner = aligner_gap_affine_2pieces();
-    //     let pattern = b"TCTTTACTCGCGCGTTGGAGAAATACAATAGT";
-    //     let text = b"TCTATACTGCGCGTTTGGAGAAATAAAATAGT";
     //     let status = aligner.align_end_to_end(pattern, text);
     //     assert_eq!(status, AlignmentStatus::StatusSuccessful);
     //     assert_eq!(aligner.alignment_score(), -6);
