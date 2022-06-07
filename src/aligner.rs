@@ -436,5 +436,6 @@ mod tests {
         aligner.set_heuristic(Heuristic::WFadaptive(1, 2, 3));
         aligner.set_heuristic(Heuristic::XDrop(1, 2));
         aligner.set_heuristic(Heuristic::ZDrop(1, 2));
+        aligner.set_heuristic(Heuristic::None);
     }
 }
