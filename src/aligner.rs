@@ -143,7 +143,7 @@ impl Drop for WFAligner {
 }
 
 impl WFAligner {
-    fn align_end_to_end(&mut self, pattern: &[u8], text: &[u8]) -> AlignmentStatus {
+    pub fn align_end_to_end(&mut self, pattern: &[u8], text: &[u8]) -> AlignmentStatus {
         let status = unsafe {
             // Configure
             wfa2::wavefront_aligner_set_alignment_end_to_end(self.inner);
@@ -159,11 +159,11 @@ impl WFAligner {
         AlignmentStatus::from(status)
     }
 
-    fn alignment_score(&self) -> i32 {
+    pub fn score(&self) -> i32 {
         unsafe { (*self.inner).cigar.score }
     }
 
-    fn alignment_cigar(&self) -> String {
+    pub fn cigar(&self) -> String {
         let cigar_str = unsafe {
             let begin_offset = (*self.inner).cigar.begin_offset;
             let cigar_operations =
@@ -174,8 +174,8 @@ impl WFAligner {
         String::from_utf8_lossy(cigar_str).to_string()
     }
 
-    fn alignment_matching(&self, pattern: &[u8], text: &[u8]) -> (String, String, String) {
-        let cigar = self.alignment_cigar();
+    pub fn matching(&self, pattern: &[u8], text: &[u8]) -> (String, String, String) {
+        let cigar = self.cigar();
         let mut pattern_iter = pattern.iter();
         let mut text_iter = text.iter();
         let mut pattern_match = String::new();
@@ -204,7 +204,7 @@ impl WFAligner {
         (pattern_match, middle_match, text_match)
     }
 
-    fn set_heuristic(&mut self, heuristic: Heuristic) {
+    pub fn set_heuristic(&mut self, heuristic: Heuristic) {
         unsafe {
             match heuristic {
                 Heuristic::None => wfa2::wavefront_aligner_set_heuristic_none(self.inner),
@@ -322,7 +322,7 @@ impl WFAlignerGapAffine {
 pub struct WFAlignerGapAffine2Pieces;
 
 impl WFAlignerGapAffine2Pieces {
-    fn new(
+    pub fn new(
         mismatch: i32,
         gap_opening1: i32,
         gap_extension1: i32,
@@ -384,7 +384,7 @@ mod tests {
         let mut aligner = aligner_indel();
         let status = aligner.align_end_to_end(PATTERN, TEXT);
         assert_eq!(status, AlignmentStatus::StatusSuccessful);
-        assert_eq!(aligner.alignment_score(), -6);
+        assert_eq!(aligner.score(), -6);
     }
 
     #[test]
@@ -392,7 +392,7 @@ mod tests {
         let mut aligner = aligner_edit();
         let status = aligner.align_end_to_end(PATTERN, TEXT);
         assert_eq!(status, AlignmentStatus::StatusSuccessful);
-        assert_eq!(aligner.alignment_score(), -4);
+        assert_eq!(aligner.score(), -4);
     }
 
     #[test]
@@ -400,7 +400,7 @@ mod tests {
         let mut aligner = aligner_gap_linear();
         let status = aligner.align_end_to_end(PATTERN, TEXT);
         assert_eq!(status, AlignmentStatus::StatusSuccessful);
-        assert_eq!(aligner.alignment_score(), -12);
+        assert_eq!(aligner.score(), -12);
     }
 
     #[test]
@@ -408,12 +408,12 @@ mod tests {
         let mut aligner = aligner_gap_affine();
         let status = aligner.align_end_to_end(PATTERN, TEXT);
         assert_eq!(status, AlignmentStatus::StatusSuccessful);
-        assert_eq!(aligner.alignment_score(), -24);
+        assert_eq!(aligner.score(), -24);
         assert_eq!(
-            aligner.alignment_cigar(),
+            aligner.cigar(),
             "MMMXMMMMDMMMMMMMIMMMMMMMMMXMMMMMM"
         );
-        let (a, b, c) = aligner.alignment_matching(PATTERN, TEXT);
+        let (a, b, c) = aligner.matching(PATTERN, TEXT);
         assert_eq!(
             format!("{}\n{}\n{}", a, b, c),
             "TCTTTACTCGCGCGTT-GGAGAAATACAATAGT\n|||||||| ||||||| ||||||||||||||||\nTCTATACT-GCGCGTTTGGAGAAATAAAATAGT"
@@ -423,9 +423,9 @@ mod tests {
     // #[test]
     // fn test_aligner_gap_affine_2pieces() {
     //     let mut aligner = aligner_gap_affine_2pieces();
-    //     let status = aligner.align_end_to_end(pattern, text);
+    //     let status = aligner.align_end_to_end(PATTERN, TEXT);
     //     assert_eq!(status, AlignmentStatus::StatusSuccessful);
-    //     assert_eq!(aligner.alignment_score(), -6);
+    //     assert_eq!(aligner.score(), -6);
     // }
 
     #[test]
